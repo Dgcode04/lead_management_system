@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from sqlalchemy import or_
 from app.models.all_leads import LeadSource, LeadStatus
 from app.models.leads import Lead
-from app.models.telecallers import Telecaller
-from app.schemas.lead import LeadCreate, LeadBase, LeadResponse
+# from app.models.telecallers import Telecaller
+from app.schemas.lead import LeadCreate, LeadBase, LeadResponse, LeadUpdate
 
 
 def create_lead(db: Session, payload) -> Lead:
@@ -49,8 +50,27 @@ def get_lead_by_id(db: Session, lead_id: int):
 def get_recent_leads_service(db: Session, user_id: int, limit: int = 5):
     return (
         db.query(Lead)
-        .filter(Lead.created_by == user_id)
+        .filter(
+            or_(
+                Lead.created_by == user_id,
+                Lead.assigned_to == user_id
+            )
+        )
         .order_by(Lead.created_at.desc())
         .limit(limit)
         .all()
     )
+
+def update_lead(db: Session, lead_id: int, payload: LeadUpdate):
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    # Update fields only if values are provided
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(lead, key, value)
+
+    db.commit()
+    db.refresh(lead)
+    return lead

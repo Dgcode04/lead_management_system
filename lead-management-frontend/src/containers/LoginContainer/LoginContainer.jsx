@@ -53,8 +53,8 @@ const LoginContainer = () => {
 
       // Prepare user data for context
       const userInfo = {
-        name: userData?.name || userData?.full_name || userData?.username || email.split('@')[0],
-        initials: (userData?.name || userData?.full_name || email.split('@')[0])
+        name: userData?.name || userData?.username || email.split('@')[0],
+        initials: (userData?.name || email.split('@')[0])
           .split(' ')
           .map(n => n[0])
           .join('')
@@ -88,7 +88,6 @@ const LoginContainer = () => {
       const errorMessage = 
         error?.data?.message || 
         error?.data?.error || 
-        error?.data?.detail ||
         error?.message ||
         'Invalid email or password. Please try again.';
       alert(errorMessage);

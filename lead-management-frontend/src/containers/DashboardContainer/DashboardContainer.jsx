@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Grid, Typography, Box, Paper, LinearProgress } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { Grid, Typography, Box, Paper, LinearProgress, CircularProgress } from '@mui/material';
 import DashboardCard from '../../components/layout/DashboardCard/DashboardCard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PeopleIcon from '@mui/icons-material/People';
@@ -11,73 +11,115 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import LeadStatusBreakdownChart from '../../components/common/LeadStatusBreakdownChart/LeadStatusBreakdownChart';
 import TelecallerPerformanceChart from '../../components/common/TelecallerPerformanceChart/TelecallerPerformanceChart';
 import TelecallerOverview from '../../components/common/TelecallerOverview/TelecallerOverview';
+import { useGetAdminDashboardQuery, useGetActiveTelecallersQuery, useGetLeadStatusDistributionQuery } from '../../store/api/leadapi/leadsApi';
 
 const DashboardContainer = () => {
+  const { data: adminDashboardData, isLoading, error } = useGetAdminDashboardQuery();
+  const { data: activeTelecallersData, isLoading: isLoadingTelecallers } = useGetActiveTelecallersQuery();
+  const { data: leadStatusDistributionData, isLoading: isLoadingLeadStatus } = useGetLeadStatusDistributionQuery();
+
   const [dashboardData, setDashboardData] = useState({
-    totalLeads: 10,
-    activeTelecallers: 2,
-    conversions: 1,
-    totalCalls: 5,
-    pendingFollowUps: 2,
-    interestedProspects: 2,
+    totalLeads: 0,
+    newThisWeek: 0,
+    activeTelecallers: 0,
+    inactiveTelecallers: 0,
+    conversions: 0,
+    conversionRate: 0,
+    totalCalls: 0,
+    pendingFollowUps: 0,
+    interestedProspects: 0,
     unassignedLeads: 0,
   });
 
-  // Pie chart data for Lead Status Distribution
-  const leadStatusData = [
-    { name: 'Follow-up', value: 20, color: '#F59E0B' },
-    { name: 'Interested', value: 20, color: '#10B981' },
-    { name: 'Converted', value: 10, color: '#059669' },
-    { name: 'Not Interested', value: 10, color: '#EF4444' },
-    { name: 'New', value: 20, color: '#3B82F6' },
-    { name: 'Contacted', value: 20, color: '#9333EA' },
-  ];
+  // Transform API response to pie chart data format
+  const leadStatusData = useMemo(() => {
+    // Define status map with order and colors
+    const statusMap = {
+      new: { name: 'New', color: '#3B82F6' },
+      contacted: { name: 'Contacted', color: '#9333EA' },
+      interested: { name: 'Interested', color: '#10B981' },
+      follow_up: { name: 'Follow-up', color: '#F59E0B' },
+      not_interested: { name: 'Not Interested', color: '#EF4444' },
+      converted: { name: 'Converted', color: '#059669' },
+    };
 
-  // Bar chart data for Telecaller Performance
-  const telecallerPerformanceData = [
-    { name: 'Sarah', converted: 0, totalLeads: 3 },
-    { name: 'Michael', converted: 1, totalLeads: 3 },
-  ];
+    if (!leadStatusDistributionData) {
+      // Return all statuses with 0 values if no data
+      return Object.entries(statusMap).map(([key, statusInfo]) => ({
+        name: statusInfo.name,
+        value: 0,
+        color: statusInfo.color,
+      }));
+    }
 
-  // Telecaller overview data
-  const telecallerOverview = [
-    {
-      name: 'Sarah Johnson',
-      leads: 5,
-      converted: 0,
-      conversionRate: 0,
-    },
-    {
-      name: 'Michael Chen',
-      leads: 5,
-      converted: 1,
-      conversionRate: 20,
-    },
-  ];
+    // Map API response to chart format - show all statuses even if count is 0
+    return Object.entries(statusMap).map(([key, statusInfo]) => {
+      const statusData = leadStatusDistributionData[key] || { count: 0, percentage: 0 };
+      return {
+        name: statusInfo.name,
+        value: statusData.count || 0,
+        color: statusInfo.color,
+      };
+    });
+  }, [leadStatusDistributionData]);
+
+  // Transform API data for TelecallerPerformanceChart
+  const telecallerPerformanceData = useMemo(() => {
+    if (!activeTelecallersData || !Array.isArray(activeTelecallersData)) return [];
+    
+    return activeTelecallersData.map((telecaller) => ({
+      name: telecaller.name || '',
+      totalLeads: telecaller.total_leads || 0,
+      converted: telecaller.converted || 0,
+    }));
+  }, [activeTelecallersData]);
+
+  // Transform API data for TelecallerOverview component
+  const telecallerOverview = activeTelecallersData
+    ? activeTelecallersData.map((telecaller) => ({
+        name: telecaller.name || '',
+        leads: telecaller.total_leads || 0,
+        converted: telecaller.converted || 0,
+        conversionRate: telecaller.conversion_rate || 0,
+      }))
+    : [];
 
   useEffect(() => {
-    // In a real app, this would fetch from an API
-  }, []);
+    if (adminDashboardData) {
+      setDashboardData({
+        totalLeads: adminDashboardData.total_leads || 0,
+        newThisWeek: adminDashboardData.new_this_week || 0,
+        activeTelecallers: (adminDashboardData.total_telecallers || 0) - (adminDashboardData.inactive_telecallers || 0),
+        inactiveTelecallers: adminDashboardData.inactive_telecallers || 0,
+        conversions: adminDashboardData.total_conversions || 0,
+        conversionRate: adminDashboardData.conversion_rate || 0,
+        totalCalls: adminDashboardData.total_calls || 0,
+        pendingFollowUps: adminDashboardData.pending_followups || 0,
+        interestedProspects: adminDashboardData.interested_prospects || 0,
+        unassignedLeads: adminDashboardData.unassigned_leads || 0,
+      });
+    }
+  }, [adminDashboardData]);
 
   const metricCards = [
     {
       title: 'Total Leads',
       value: dashboardData.totalLeads.toString(),
-      subtitle: '2 new this week',
+      subtitle: `${dashboardData.newThisWeek} new this week`,
       icon: DescriptionIcon,
       iconColor: 'primary',
     },
     {
       title: 'Active Telecallers',
       value: dashboardData.activeTelecallers.toString(),
-      subtitle: '1 inactive',
+      subtitle: `${dashboardData.inactiveTelecallers} inactive`,
       icon: PeopleIcon,
       iconColor: 'primary',
     },
     {
       title: 'Conversions',
       value: dashboardData.conversions.toString(),
-      subtitle: '10.0% conversion rate',
+      subtitle: `${dashboardData.conversionRate.toFixed(1)}% conversion rate`,
       icon: AccessTimeIcon,
       iconColor: 'primary',
     },
@@ -110,6 +152,22 @@ const DashboardContainer = () => {
       iconColor: 'error',
     },
   ];
+
+  if (isLoading || isLoadingTelecallers || isLoadingLeadStatus) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography color="error">Error loading dashboard data. Please try again later.</Typography>
+      </Box>
+    );
+  }
 
 
   return (

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.users import UserResponse, TelecallerCreate
 from app.schemas.telecallers import TelecallerCreate, TelecallerResponse, GetAllTelecallerResponse
-from app.services.telecallers_service import create_telecaller, get_all_telecallers
+from app.services.telecallers_service import create_telecaller, get_all_telecallers, get_lead_count_for_telecaller
 
 router = APIRouter(prefix="/telecallers", tags=["Telecaller Admin"])
 
@@ -25,3 +25,4 @@ def list_telecallers(db: Session = Depends(get_db)):
 def create_user(payload: TelecallerCreate, db: Session = Depends(get_db)):
     user = create_telecaller(db, payload)
     return user
+

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, TIMESTAMP, func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
@@ -25,5 +25,6 @@ class LeadCall(Base):
     duration_minutes = Column(Integer, default=0)
 
     notes = Column(String(255))
+    call_date = Column(TIMESTAMP, server_default=func.now())
 
     lead = relationship("Lead", back_populates="calls")

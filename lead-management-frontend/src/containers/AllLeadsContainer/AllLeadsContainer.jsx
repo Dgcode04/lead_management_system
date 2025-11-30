@@ -153,50 +153,55 @@ const AllLeadsContainer = () => {
   const leadStatusOptions = useMemo(() => {
     if (!leadStatusData) return [];
     
+    let options = [];
+    
     // Handle different API response formats
     // If API returns array of strings: ["New", "Contacted", ...]
     if (Array.isArray(leadStatusData?.lead_status) && leadStatusData?.lead_status?.length > 0) {
       if (typeof leadStatusData?.lead_status[0] === 'string') {
-        return leadStatusData?.lead_status?.map((status) => ({
+        options = leadStatusData?.lead_status?.map((status) => ({
           value: status,
           label: status,
         }));
       }
       // If API returns array of objects: [{id: 1, name: "New"}, ...]
-      if (typeof leadStatusData?.lead_status[0] === 'object') {
-        return leadStatusData?.lead_status?.map((status) => ({
+      else if (typeof leadStatusData?.lead_status[0] === 'object') {
+        options = leadStatusData?.lead_status?.map((status) => ({
           value: status.name || status.id || status.value,
           label: status.name || status.label || status.value,
         }));
       }
     }
-    
     // If API returns array directly
-    if (Array.isArray(leadStatusData) && leadStatusData.length > 0) {
+    else if (Array.isArray(leadStatusData) && leadStatusData.length > 0) {
       if (typeof leadStatusData[0] === 'string') {
-        return leadStatusData.map((status) => ({
+        options = leadStatusData.map((status) => ({
           value: status,
           label: status,
         }));
       }
-      if (typeof leadStatusData[0] === 'object') {
-        return leadStatusData.map((status) => ({
+      else if (typeof leadStatusData[0] === 'object') {
+        options = leadStatusData.map((status) => ({
           value: status.name || status.id || status.value,
           label: status.name || status.label || status.value,
         }));
       }
     }
-    
     // If API returns object with data property: {data: [...]}
-    if (leadStatusData?.data && Array.isArray(leadStatusData.data)) {
-      return leadStatusData.data.map((status) => ({
+    else if (leadStatusData?.data && Array.isArray(leadStatusData.data)) {
+      options = leadStatusData.data.map((status) => ({
         value: typeof status === 'string' ? status : (status.name || status.id || status.value),
         label: typeof status === 'string' ? status : (status.name || status.label || status.value),
       }));
     }
     
-    return [];
+    return options;
   }, [leadStatusData]);
+
+  // Limited status options for form field (top 4 only)
+  const leadStatusOptionsForForm = useMemo(() => {
+    return leadStatusOptions.slice(0, 4);
+  }, [leadStatusOptions]);
 
   // Transform API response to options format for Telecallers Selector component
   const telecallerOptions = useMemo(() => {
@@ -588,7 +593,7 @@ const AllLeadsContainer = () => {
                 value={formData.status}
                 onChange={handleSelectChange('status')}
                 placeholder="New"
-                options={leadStatusOptions}
+                options={leadStatusOptionsForForm}
                 disabled={isLoadingStatus}
               />
             </Box>

@@ -70,6 +70,14 @@ export const telecallersApi = createApi({
       }),
       invalidatesTags: ['Telecallers'],
     }),
+    // Toggle telecaller active/inactive status
+    toggleTelecallerStatus: builder.mutation({
+      query: (userId) => ({
+        url: `admin/telecaller/${userId}/toggle`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Telecallers'],
+    }),
   }),
 });
 
@@ -81,6 +89,7 @@ export const {
   useCreateTelecallerMutation,
   useUpdateTelecallerMutation,
   useDeleteTelecallerMutation,
+  useToggleTelecallerStatusMutation,
 } = telecallersApi;
 
 export default telecallersApi;

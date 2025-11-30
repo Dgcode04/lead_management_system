@@ -90,14 +90,19 @@ const Modal = ({
             <Button
               onClick={primaryButton.onClick}
               variant="contained"
+              disabled={primaryButton.disabled}
               sx={{
-                backgroundColor: '#000000',
+                backgroundColor: primaryButton.danger ? '#DC2626' : '#000000',
                 color: '#FFFFFF',
                 textTransform: 'none',
                 borderRadius: '10px',
                 padding: '8px 16px',
                 '&:hover': {
-                  backgroundColor: '#333333',
+                  backgroundColor: primaryButton.danger ? '#B91C1C' : '#333333',
+                },
+                '&:disabled': {
+                  backgroundColor: primaryButton.danger ? '#FCA5A5' : '#9CA3AF',
+                  color: '#FFFFFF',
                 },
               }}
             >

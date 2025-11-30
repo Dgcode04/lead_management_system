@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import date, time
+from datetime import date, time, datetime
 from typing import Optional
 
 
@@ -13,6 +13,11 @@ class ReminderCreate(BaseModel):
     status: Optional[str] = "pending"
 
     model_config = {"from_attributes": True}
+
+class ReminderUpdateRequest(BaseModel):
+    completed: bool
+    note: str | None = None
+    date_time: datetime | None = None
 
 
 class ReminderResponse(BaseModel):

@@ -19,6 +19,8 @@ class LeadStatus(PyEnum):
     contacted = "contacted"
     follow_up = "follow_up"
     interested = "interested"
+    converted= "converted"
+    not_interested = "not_interested"
 
 
 class Leads(Base):

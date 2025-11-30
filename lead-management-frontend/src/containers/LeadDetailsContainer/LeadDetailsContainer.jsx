@@ -30,7 +30,8 @@ import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
 import Label from '../../components/common/Label/Label';
 import Selector from '../../components/common/Selector/Selector';
-import { useGetLeadByIdQuery, useGetLeadStatusQuery, useUpdateLeadMutation, useGetLeadCallsQuery, useCreateLeadCallMutation, useGetRemindersQuery, useCreateReminderMutation } from '../../store/api/leadapi';
+import { useGetLeadByIdQuery, useGetLeadStatusQuery, useUpdateLeadMutation, useGetLeadCallsQuery, useCreateLeadCallMutation, useGetRemindersQuery, useCreateReminderMutation, useGetLeadSourcesQuery } from '../../store/api/leadapi';
+// import { useGetAllTelecallersQuery } from '../../store/api/telecallersapi';
 import { useAppContext } from '../../context/AppContext';
 
 const LeadDetailsContainer = () => {
@@ -40,12 +41,18 @@ const LeadDetailsContainer = () => {
     const isTelecaller = user?.role === 'Telecaller';
 
     // Fetch lead by ID from API
-    const { data: leadData, isLoading: isLoadingLead, error: leadError } = useGetLeadByIdQuery(id, {
+    const { data: leadData, isLoading: isLoadingLead, error: leadError, refetch: refetchLead } = useGetLeadByIdQuery(id, {
         skip: !id,
     });
 
     // Fetch lead status options from API
     const { data: leadStatusData, isLoading: isLoadingStatus } = useGetLeadStatusQuery();
+
+    // Fetch lead sources from API
+    const { data: leadSourcesData, isLoading: isLoadingSources } = useGetLeadSourcesQuery();
+
+    // Fetch telecallers from API (for admin only)
+    // const { data: telecallersData, isLoading: isLoadingTelecallers } = useGetAllTelecallersQuery();
 
     // Fetch lead calls from API
     // Note: RTK Query can handle string IDs in URLs, but we'll ensure it's valid
@@ -90,8 +97,10 @@ const LeadDetailsContainer = () => {
             email: leadData.email || '',
             company: leadData.company || '',
             status: leadData.initial_status || leadData.status || 'New',
-            assignedTo: leadData.created_by_user?.name || leadData.assignedTo || 'Unassigned',
+            assignedTo: leadData.assigned_user?.name || leadData.created_by_user?.name || leadData.assignedTo || 'Unassigned',
+            assignedToId: leadData.assigned_to || null,
             source: leadData.source || leadData.lead_source || '',
+            campaign: leadData.campaign || '',
             created: leadData.created_at
                 ? new Date(leadData.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : 'N/A',
@@ -105,8 +114,17 @@ const LeadDetailsContainer = () => {
     }, [leadData]);
 
     const [status, setStatus] = useState('New');
+    const [isEditMode, setIsEditMode] = useState(false);
     const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        source: '',
+        campaign: '',
+    });
     const [callFormData, setCallFormData] = useState({
         callType: '',
         duration: '',
@@ -125,6 +143,89 @@ const LeadDetailsContainer = () => {
             setStatus(lead.status);
         }
     }, [lead]);
+
+    // Handle edit button click
+    const handleEditClick = () => {
+        if (lead) {
+            setEditFormData({
+                name: lead.name || '',
+                email: lead.email || '',
+                phone: lead.phone || '',
+                company: lead.company || '',
+                source: lead.source || '',
+                campaign: lead.campaign || '',
+            });
+            setIsEditMode(true);
+        }
+    };
+
+    // Handle cancel edit
+    const handleCancelEdit = () => {
+        setIsEditMode(false);
+        setEditFormData({
+            name: '',
+            email: '',
+            phone: '',
+            company: '',
+            source: '',
+            status: '',
+            campaign: '',
+            assignTo: '',
+        });
+    };
+
+    // Handle input change for edit form
+    const handleEditInputChange = (field) => (e) => {
+        setEditFormData((prev) => ({
+            ...prev,
+            [field]: e.target.value,
+        }));
+    };
+
+    // Handle select change for edit form
+    const handleEditSelectChange = (field) => (e) => {
+        setEditFormData((prev) => ({
+            ...prev,
+            [field]: e.target.value,
+        }));
+    };
+
+    // Handle save edit
+    const handleSaveEdit = async () => {
+        // Validate required fields
+        if (!editFormData.name || !editFormData.email || !editFormData.phone) {
+            alert('Please fill in all required fields (Name, Email, Phone)');
+            return;
+        }
+
+        try {
+            // Prepare lead data for API payload
+            const leadUpdateData = {
+                id: id,
+                name: editFormData.name,
+                email: editFormData.email,
+                phone: editFormData.phone,
+                company: editFormData.company || '',
+                source: editFormData.source || '',
+                campaign: editFormData.campaign || '',
+            };
+
+            // Update lead via API
+            await updateLead(leadUpdateData).unwrap();
+
+            // Exit edit mode on success
+            setIsEditMode(false);
+        } catch (error) {
+            console.error('Error updating lead:', error);
+            const errorMessage = 
+                error?.data?.message || 
+                error?.data?.error || 
+                error?.data?.detail ||
+                error?.message ||
+                'Failed to update lead. Please try again.';
+            alert(errorMessage);
+        }
+    };
 
     // Transform API call logs response to match component format
     const callLogs = useMemo(() => {
@@ -168,6 +269,77 @@ const LeadDetailsContainer = () => {
             return b.id - a.id;
         });
     }, [remindersData, user?.name]);
+
+    // Transform API response to options format for Lead Sources Selector
+    const leadSourceOptions = useMemo(() => {
+        if (!leadSourcesData) return [];
+        
+        // Handle different API response formats
+        if (Array.isArray(leadSourcesData?.lead_sources) && leadSourcesData?.lead_sources?.length > 0) {
+            if (typeof leadSourcesData?.lead_sources[0] === 'string') {
+                return leadSourcesData?.lead_sources?.map((source) => ({
+                    value: source,
+                    label: source,
+                }));
+            }
+            if (typeof leadSourcesData?.lead_sources[0] === 'object') {
+                return leadSourcesData?.lead_sources?.map((source) => ({
+                    value: source.name || source.id || source.value,
+                    label: source.name || source.label || source.value,
+                }));
+            }
+        }
+        
+        if (leadSourcesData?.lead_sources && Array.isArray(leadSourcesData?.lead_sources)) {
+            return leadSourcesData?.lead_sources?.map((source) => ({
+                value: typeof source === 'string' ? source : (source.name || source.id || source.value),
+                label: typeof source === 'string' ? source : (source.name || source.label || source.value),
+            }));
+        }
+        
+        return [];
+    }, [leadSourcesData]);
+
+    // Transform API response to options format for Telecallers Selector
+    // const telecallerOptions = useMemo(() => {
+    //     if (!telecallersData) return [];
+        
+    //     const options = [{ value: 'Unassigned', label: 'Unassigned' }];
+        
+    //     if (telecallersData?.items && Array.isArray(telecallersData.items) && telecallersData.items.length > 0) {
+    //         const telecallers = telecallersData.items.map((telecaller) => ({
+    //             value: telecaller.id || null,
+    //             label: telecaller.name || '',
+    //         }));
+    //         return [...options, ...telecallers];
+    //     }
+        
+    //     if (Array.isArray(telecallersData?.telecallers) && telecallersData?.telecallers?.length > 0) {
+    //         const telecallers = telecallersData.telecallers.map((telecaller) => ({
+    //             value: telecaller.id || null,
+    //             label: telecaller.name || '',
+    //         }));
+    //         return [...options, ...telecallers];
+    //     }
+        
+    //     if (Array.isArray(telecallersData) && telecallersData.length > 0) {
+    //         const telecallers = telecallersData.map((telecaller) => ({
+    //             value: telecaller.id || null,
+    //             label: telecaller.name || '',
+    //         }));
+    //         return [...options, ...telecallers];
+    //     }
+        
+    //     if (telecallersData?.data && Array.isArray(telecallersData.data)) {
+    //         const telecallers = telecallersData.data.map((telecaller) => ({
+    //             value: typeof telecaller === 'object' ? (telecaller.id || null) : null,
+    //             label: typeof telecaller === 'object' ? (telecaller.name || '') : telecaller,
+    //         }));
+    //         return [...options, ...telecallers];
+    //     }
+        
+    //     return options;
+    // }, [telecallersData]);
 
     // Transform API response to options format for Status Selector
     const leadStatusOptions = useMemo(() => {
@@ -216,16 +388,23 @@ const LeadDetailsContainer = () => {
 
     // Handle status update
     const handleStatusChange = async (newStatus) => {
-        setStatus(newStatus);
+        if (!newStatus || newStatus === status) return; // Don't update if same value or empty
+        
+        const previousStatus = status; // Store previous status for rollback
+        setStatus(newStatus); // Optimistic update
+        
         try {
             await updateLead({
                 id: id,
                 initial_status: newStatus,
             }).unwrap();
+            
+            // Refetch lead data to ensure UI is in sync
+            await refetchLead();
         } catch (error) {
             console.error('Error updating lead status:', error);
             // Revert status on error
-            setStatus(lead?.status || 'New');
+            setStatus(previousStatus);
             const errorMessage = 
                 error?.data?.message || 
                 error?.data?.error || 
@@ -709,9 +888,9 @@ const LeadDetailsContainer = () => {
                 <Button
                     variant="contained"
                     startIcon={<EditIcon />}
+                    onClick={handleEditClick}
                     sx={{
                         borderRadius: '10px',
-
                         backgroundColor: '#1F2937',
                         textTransform: 'none',
                         '&:hover': {
@@ -733,56 +912,161 @@ const LeadDetailsContainer = () => {
                                 borderRadius: 1,
                                 width: '100%',
                             }}
-                        >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                                <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                                    {lead.name}
-                                </Typography>
-                                <Chip
-                                    label={lead.status}
-                                    size="small"
-                                    sx={{
-                                        backgroundColor: getStatusBgColor(lead.status),
-                                        color: getStatusColor(lead.status),
-                                        fontWeight: 500,
-                                        fontSize: '12px',
-                                    }}
-                                />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                Lead ID: {lead.id}
-                            </Typography>
+                        ><Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                            {lead.name}
+                        </Typography>
+                        <Chip
+                            label={lead.status}
+                            size="small"
+                            sx={{
+                                backgroundColor: getStatusBgColor(lead.status),
+                                color: getStatusColor(lead.status),
+                                fontWeight: 500,
+                                fontSize: '12px',
+                            }}
+                        />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Lead ID: {lead.id}
+                    </Typography>
+                            {isEditMode ? (
+                                // Edit Form
+                                <Box>
+                                    <Grid container spacing={2}>
+                                        {/* Left Column */}
+                                        <Grid item xs={12} sm={6}>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label required>Name</Label>
+                                                <Input
+                                                    value={editFormData.name}
+                                                    onChange={handleEditInputChange('name')}
+                                                    placeholder="John Doe"
+                                                    required
+                                                />
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label required>Phone</Label>
+                                                <Input
+                                                    value={editFormData.phone}
+                                                    onChange={handleEditInputChange('phone')}
+                                                    placeholder="+1234567890"
+                                                    type="tel"
+                                                    required
+                                                />
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label>Source</Label>
+                                                <Selector
+                                                    value={editFormData.source}
+                                                    onChange={handleEditSelectChange('source')}
+                                                    placeholder="Select source"
+                                                    options={leadSourceOptions}
+                                                    disabled={isLoadingSources}
+                                                />
+                                            </Box>
+                                        </Grid>
 
-                            <Grid container spacing={16} >
-                                <Grid item xs={12} sm={6} >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <PhoneIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">{lead.phone}</Typography>
+                                        {/* Right Column */}
+                                        <Grid item xs={12} sm={6}>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label required>Email</Label>
+                                                <Input
+                                                    value={editFormData.email}
+                                                    onChange={handleEditInputChange('email')}
+                                                    placeholder="john@example.com"
+                                                    type="email"
+                                                    required
+                                                />
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label>Company</Label>
+                                                <Input
+                                                    value={editFormData.company}
+                                                    onChange={handleEditInputChange('company')}
+                                                    placeholder="Acme Inc."
+                                                />
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Label>Campaign</Label>
+                                                <Input
+                                                    value={editFormData.campaign}
+                                                    onChange={handleEditInputChange('campaign')}
+                                                    placeholder="Q4 2025"
+                                                />
+                                            </Box>
+                                            
+                                        </Grid>
+                                    </Grid>
+                                    <Box sx={{ display: 'flex', gap: 2, mt: 3, justifyContent: 'flex-start' }}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={handleSaveEdit}
+                                            disabled={isUpdating}
+                                            sx={{
+                                                backgroundColor: '#1F2937',
+                                                textTransform: 'none',
+                                                '&:hover': {
+                                                    backgroundColor: '#374151',
+                                                },
+                                            }}
+                                        >
+                                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleCancelEdit}
+                                            sx={{
+                                                textTransform: 'none',
+                                                borderColor: '#E5E7EB',
+                                                color: '#374151',
+                                                '&:hover': {
+                                                    borderColor: '#D1D5DB',
+                                                    backgroundColor: '#F9FAFB',
+                                                },
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
                                     </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <BusinessIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">{lead.company}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <LocationOnIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">Source: {lead.source}</Typography>
-                                    </Box>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <EmailIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">{lead.email}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <PersonIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">{lead.assignedTo}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                        <CalendarTodayIcon sx={{ fontSize: 18, color: '#6B7280' }} />
-                                        <Typography variant="body2">Created: {lead.created}</Typography>
-                                    </Box>
-                                 </Grid>
-                             </Grid>
+                                </Box>
+                            ) : (
+                                // View Mode
+                                <>
+                                    
+
+                                    <Grid container spacing={16} >
+                                        <Grid item xs={12} sm={6} >
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <PhoneIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">{lead.phone}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <BusinessIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">{lead.company}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <LocationOnIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">Source: {lead.source}</Typography>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <EmailIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">{lead.email}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <PersonIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">{lead.assignedTo}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                                <CalendarTodayIcon sx={{ fontSize: 18, color: '#6B7280' }} />
+                                                <Typography variant="body2">Created: {lead.created}</Typography>
+                                            </Box>
+                                         </Grid>
+                                     </Grid>
+                                </>
+                            )}
                          </Box>
                      </Grid>
 
@@ -800,14 +1084,15 @@ const LeadDetailsContainer = () => {
                                 Quick Actions
                             </Typography>
                             <FormControl fullWidth sx={{ mb: 2}}>
-                                <InputLabel>Update Status</InputLabel>
+                                <Label>Update Status</Label>
                                 <Selector
-                            value={status}
-                            onChange={(e) => handleStatusChange(e.target.value)}
-                            placeholder="Select call type"
-                            options={leadStatusOptions}
-                            required
-                        />
+                                    value={status}
+                                    onChange={(e) => handleStatusChange(e.target.value)}
+                                    placeholder="Select status"
+                                    options={leadStatusOptions}
+                                    disabled={isUpdating || isLoadingStatus || isLoadingLead}
+                                    required
+                                />
                                 {/* <Select
                                     value={status}
                                     label="Update Status"

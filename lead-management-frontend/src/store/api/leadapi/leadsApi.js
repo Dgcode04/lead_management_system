@@ -16,7 +16,7 @@ const baseQuery = fetchBaseQuery({
 export const leadsApi = createApi({
   reducerPath: 'leadsApi',
   baseQuery,
-  tagTypes: ['Leads', 'LeadSources', 'LeadStatus', 'LeadCalls', 'Reminders'],
+  tagTypes: ['Leads', 'LeadSources', 'LeadStatus', 'LeadCalls', 'Reminders', 'Telecallers'],
   endpoints: (builder) => ({
     // Get all leads
     getAllLeads: builder.query({
@@ -40,7 +40,7 @@ export const leadsApi = createApi({
     // Update a lead
     updateLead: builder.mutation({
       query: ({ id, ...leadData }) => ({
-        url: `leads/${id}`,
+        url: `leads/lead/${id}`,
         method: 'PUT',
         body: leadData,
       }),
@@ -103,15 +103,75 @@ export const leadsApi = createApi({
         'Reminders',
       ],
     }),
+    // Update a reminder (mark as complete)
+    updateReminder: builder.mutation({
+      query: ({ reminderId, complete }) => ({
+        url: `reminders/reminder/${reminderId}`,
+        method: 'PUT',
+        body: { completed: complete },
+      }),
+      invalidatesTags: ['Reminders'],
+    }),
     // Get upcoming follow-ups
     getUpcomingFollowups: builder.query({
       query: () => 'reminders/upcoming-followups',
+      providesTags: ['Reminders'],
+    }),
+    // Get overdue reminders for a telecaller
+    getTelecallerOverdueReminders: builder.query({
+      query: (telecallerId) => `reminders/telecaller/${telecallerId}/reminders/overdue`,
       providesTags: ['Reminders'],
     }),
     // Get dashboard summary
     getDashboardSummary: builder.query({
       query: () => 'dashboard/summary',
       providesTags: ['Leads', 'Reminders'],
+    }),
+    // Get admin dashboard data
+    getAdminDashboard: builder.query({
+      query: () => 'dashboard/admin/dashboard',
+      providesTags: ['Leads', 'Reminders'],
+    }),
+    // Get active telecallers data
+    getActiveTelecallers: builder.query({
+      query: () => 'dashboard/active-telecallers',
+      providesTags: ['Telecallers'],
+    }),
+    // Get lead status distribution
+    getLeadStatusDistribution: builder.query({
+      query: () => 'dashboard/dashboard/lead-status',
+      providesTags: ['Leads'],
+    }),
+    // Get reports data
+    getReportsData: builder.query({
+      query: ({ day, telecaller_id }) => {
+        const params = { range_days: day };
+        if (telecaller_id) {
+          params.telecaller_id = telecaller_id;
+        }
+        return {
+          url: 'reports/data',
+          params,
+        };
+      },
+      providesTags: ['Leads'],
+    }),
+    // Export reports CSV
+    exportReportsCsv: builder.mutation({
+      queryFn: async (day, api, extraOptions, baseQuery) => {
+        const result = await baseQuery({
+          url: 'reports/export-csv',
+          method: 'GET',
+          params: { range_days: day },
+          responseHandler: (response) => response.blob(),
+        });
+        
+        if (result.error) {
+          return { error: result.error };
+        }
+        
+        return { data: result.data };
+      },
     }),
     // Export leads
     exportLeads: builder.mutation({
@@ -145,8 +205,15 @@ export const {
   useCreateLeadCallMutation,
   useGetRemindersQuery,
   useCreateReminderMutation,
+  useUpdateReminderMutation,
   useGetUpcomingFollowupsQuery,
+  useGetTelecallerOverdueRemindersQuery,
   useGetDashboardSummaryQuery,
+  useGetAdminDashboardQuery,
+  useGetActiveTelecallersQuery,
+  useGetLeadStatusDistributionQuery,
+  useGetReportsDataQuery,
+  useExportReportsCsvMutation,
   useExportLeadsMutation,
 } = leadsApi;
 

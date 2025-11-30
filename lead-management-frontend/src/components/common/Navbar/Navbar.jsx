@@ -2,8 +2,28 @@ import { AppBar, Toolbar, Typography, Box } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import NotificationIcon from '../NotificationIcon/NotificationIcon';
 import UserProfile from '../UserProfile/UserProfile';
+import { useAppContext } from '../../../context/AppContext';
+import { useGetTelecallerOverdueRemindersQuery } from '../../../store/api/leadapi';
+import { useMemo } from 'react';
 
 const Navbar = () => {
+  const { user } = useAppContext();
+  const isTelecaller = user?.role === 'Telecaller';
+  const telecallerId = user?.id;
+
+  // Fetch reminders count for notification badge
+  const { data: overdueRemindersData } = useGetTelecallerOverdueRemindersQuery(telecallerId, {
+    skip: !telecallerId || !isTelecaller,
+  });
+
+  // Calculate pending reminders count
+  const pendingRemindersCount = useMemo(() => {
+    if (!overdueRemindersData?.pending || !Array.isArray(overdueRemindersData.pending)) {
+      return 0;
+    }
+    return overdueRemindersData.pending.length;
+  }, [overdueRemindersData]);
+
   return (
     <AppBar
       position="fixed"
@@ -23,7 +43,7 @@ const Navbar = () => {
         </Box>
         <Box sx={{ flexGrow: 1 }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <NotificationIcon />
+          {isTelecaller && <NotificationIcon count={pendingRemindersCount} />}
           <UserProfile />
         </Box>
       </Toolbar>

@@ -13,5 +13,6 @@ export {
   useCreateTelecallerMutation,
   useUpdateTelecallerMutation,
   useDeleteTelecallerMutation,
+  useToggleTelecallerStatusMutation,
 } from './telecallersApi';
 

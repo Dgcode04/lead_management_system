@@ -4,9 +4,11 @@ import { Avatar, Box, Menu, MenuItem, Typography } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAppContext } from '../../../context/AppContext';
 import { useLogoutMutation } from '../../../store/api/authapi';
+import Modal from '../Modal/Modal';
 
 const UserProfile = () => {
   const [anchorEl, setAnchorEl] = useState(null);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const open = Boolean(anchorEl);
   const { user, logout } = useAppContext();
   const navigate = useNavigate();
@@ -20,8 +22,17 @@ const UserProfile = () => {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
     handleClose();
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setIsLogoutModalOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setIsLogoutModalOpen(false);
     try {
       // Call logout API endpoint
       await logoutApi().unwrap();
@@ -107,7 +118,7 @@ const UserProfile = () => {
           My Account
         </MenuItem>
         <MenuItem
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
           disabled={isLoggingOut}
           sx={{
             py: 1.5,
@@ -127,6 +138,26 @@ const UserProfile = () => {
           {isLoggingOut ? 'Logging out...' : 'Log out'}
         </MenuItem>
       </Menu>
+
+      <Modal
+        open={isLogoutModalOpen}
+        onClose={handleLogoutCancel}
+        title="Are you sure you want to log out?"
+        subtitle="You will be returned to the login screen. Any unsaved changes will be lost."
+        maxWidth="md"
+        primaryButton={{
+          label: 'Log out',
+          onClick: handleLogoutConfirm,
+          disabled: isLoggingOut,
+          danger: true,
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onClick: handleLogoutCancel,
+        }}
+      >
+        <Box />
+      </Modal>
     </>
   );
 };

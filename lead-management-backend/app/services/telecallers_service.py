@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, select, case
+from sqlalchemy import func, select, case, or_
 from fastapi import HTTPException
 from app.models.signin import User, UserRole
-from app.models.telecallers import Telecaller
+# from app.models.telecallers import Telecaller
 from app.models.telecaller_profile import TelecallerProfile
 from app.schemas.telecallers import TelecallerCreate, TelecallerResponse 
 from app.models.leads import Lead
@@ -51,6 +51,20 @@ def get_all_telecallers(db: Session):
     """Fetch all telecallers"""
     return db.query(User).filter(User.role == UserRole.telecaller).all()
 
+def get_lead_count_for_telecaller(db: Session, telecaller_id: int):
+    """Return total leads created or assigned to a telecaller"""
+    return (
+        db.query(func.count(Lead.id))
+        .filter(
+            or_(
+                Lead.created_by == telecaller_id,
+                Lead.assigned_to == telecaller_id
+            )
+        )
+        .scalar()  # returns a single integer
+    )
+
+
 def get_telecaller_list_service(db: Session, page: int, size: int, q: str = None):
 
     query = (
@@ -64,7 +78,7 @@ def get_telecaller_list_service(db: Session, page: int, size: int, q: str = None
             TelecallerProfile.last_login.label("last_login"),
 
             # Count leads created by telecaller
-            func.count(func.distinct(Lead.id)).label("lead_count"),
+            # func.count(func.distinct(Lead.id)).label("lead"),
 
             func.count(func.distinct(LeadCall.id)).label("call_count"),
 
@@ -79,8 +93,6 @@ def get_telecaller_list_service(db: Session, page: int, size: int, q: str = None
         )
         .join(TelecallerProfile, TelecallerProfile.user_id == User.id)
 
-        # JOIN Leads using created_by
-        .outerjoin(Lead, Lead.assigned_to == User.id)        # FIXED
         .outerjoin(LeadCall, LeadCall.user_id == User.id)    # telecaller calls
 
         .filter(User.role == UserRole.telecaller)
@@ -101,9 +113,12 @@ def get_telecaller_list_service(db: Session, page: int, size: int, q: str = None
 
     result = []
     for row in rows:
+
+        lead = get_lead_count_for_telecaller(db, row.id)
+
         conv_rate = 0
-        if row.lead_count and row.lead_count > 0:
-            conv_rate = (row.converted_count / row.lead_count) * 100
+        if lead and lead > 0:
+            conv_rate = (row.converted_count / lead) * 100
 
         result.append({
             "id": row.id,
@@ -111,7 +126,7 @@ def get_telecaller_list_service(db: Session, page: int, size: int, q: str = None
             "email": row.email,
             "phone": row.phone,
             "status": row.status,
-            "leads": row.lead_count,
+            "lead": lead,
             "calls": row.call_count,
             "converted": row.converted_count,
             "conversion_rate": round(conv_rate, 2),

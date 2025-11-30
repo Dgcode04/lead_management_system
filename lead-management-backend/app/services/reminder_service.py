@@ -1,5 +1,6 @@
-from sqlalchemy.orm import Session
-from datetime import date
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_
+from datetime import date, datetime
 from app.models.leads import Lead
 from app.models.reminder import Reminder
 from app.schemas.reminder import ReminderCreate
@@ -50,3 +51,68 @@ def get_upcoming_followups(db: Session, user_id: int):
         })
 
     return results
+
+
+def get_overdue_reminders_service(db: Session, telecaller_id: int):
+    now = datetime.utcnow()
+
+    # Fetch ALL reminders for the telecaller (pending + completed)
+    reminders = (
+        db.query(Reminder)
+        .options(joinedload(Reminder.lead))
+        .filter(Reminder.user_id == telecaller_id)
+        .all()
+    )
+
+    pending_list = []
+    completed_list = []
+
+    for r in reminders:
+        data = {
+            "reminder_id": r.id,
+            "title": r.title,
+            "description": r.description,
+            "reminder_date": r.reminder_date,
+            "reminder_time": r.reminder_time,
+            "lead_id": r.lead.id if r.lead else None,
+            "lead_name": r.lead.name if r.lead else None,
+            "lead_company": r.lead.company if r.lead else None,
+            "lead_status": r.lead.initial_status if r.lead else None
+        }
+
+        if r.status == "pending":
+            pending_list.append(data)
+        else:
+            completed_list.append(data)
+
+    return {
+        "pending": pending_list,
+        "completed": completed_list
+    }
+
+def update_reminder_status_service(
+    db: Session,
+    reminder_id: int,
+    completed: bool,
+    note: str = None,
+    date_time: datetime = None
+):
+    reminder = db.query(Reminder).filter(Reminder.id == reminder_id).first()
+
+    if not reminder:
+        return None
+    if completed:
+        reminder.status = "completed"
+    else:
+        reminder.status = "pending"
+
+    if note is not None:
+        reminder.note = note
+
+    if date_time is not None:
+        reminder.date_time = date_time
+
+    db.commit()
+    db.refresh(reminder)
+
+    return reminder

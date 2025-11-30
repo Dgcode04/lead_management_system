@@ -7,7 +7,7 @@ import TelecallersTable from '../../components/common/TelecallersTable/Telecalle
 import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
 import Label from '../../components/common/Label/Label';
-import { useGetAdminTelecallersQuery, useCreateTelecallerMutation } from '../../store/api/telecallersapi';
+import { useGetAdminTelecallersQuery, useCreateTelecallerMutation, useToggleTelecallerStatusMutation } from '../../store/api/telecallersapi';
 
 const UserManagementContainer = () => {
   // Fetch admin telecallers from API (paginated)
@@ -15,6 +15,9 @@ const UserManagementContainer = () => {
   
   // Create telecaller mutation
   const [createTelecaller, { isLoading: isCreatingTelecaller }] = useCreateTelecallerMutation();
+  
+  // Toggle telecaller status mutation
+  const [toggleTelecallerStatus, { isLoading: isTogglingStatus }] = useToggleTelecallerStatusMutation();
 
   // Transform API response to match component format
   const telecallers = useMemo(() => {
@@ -70,10 +73,21 @@ const UserManagementContainer = () => {
 
   // Data is now fetched from API, no need for useEffect
 
-  const handleStatusToggle = (id, isActive) => {
-    // TODO: Implement API call to update telecaller status
-    // For now, this is handled by the API response
-    console.log('Toggle status for telecaller:', id, isActive);
+  const handleStatusToggle = async (id, isActive) => {
+    try {
+      // Call the toggle API endpoint
+      await toggleTelecallerStatus(id).unwrap();
+      // The cache will be invalidated automatically, so the data will refresh
+    } catch (error) {
+      console.error('Error toggling telecaller status:', error);
+      const errorMessage = 
+        error?.data?.message || 
+        error?.data?.error || 
+        error?.data?.detail ||
+        error?.message ||
+        'Failed to update telecaller status. Please try again.';
+      alert(errorMessage);
+    }
   };
 
   const handleAddTelecaller = () => {

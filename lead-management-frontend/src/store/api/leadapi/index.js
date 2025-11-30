@@ -20,6 +20,13 @@ export {
   useCreateReminderMutation,
   useGetUpcomingFollowupsQuery,
   useGetDashboardSummaryQuery,
+  useGetAdminDashboardQuery,
+  useGetActiveTelecallersQuery,
+  useGetTelecallerOverdueRemindersQuery,
+  useUpdateReminderMutation,
+  useGetLeadStatusDistributionQuery,
+  useGetReportsDataQuery,
+  useExportReportsCsvMutation,
   useExportLeadsMutation,
 } from './leadsApi';
 

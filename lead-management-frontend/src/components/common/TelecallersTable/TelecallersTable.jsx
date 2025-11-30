@@ -21,7 +21,7 @@ const TelecallersTable = ({ telecallers, onStatusToggle, loading = false }) => {
         field: 'name',
         headerName: 'Name',
         flex: 1,
-        minWidth: 120,
+        minWidth: 100,
         sortable: false,
         renderCell: (params) => (
           <Box>
@@ -38,7 +38,7 @@ const TelecallersTable = ({ telecallers, onStatusToggle, loading = false }) => {
         field: 'contact',
         headerName: 'Contact',
         flex: 1.2,
-        minWidth: 180,
+        minWidth: 150,
         sortable: false,
         renderCell: (params) => (
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
