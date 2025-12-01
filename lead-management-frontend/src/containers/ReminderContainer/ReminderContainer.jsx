@@ -12,6 +12,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useAppContext } from '../../context/AppContext';
 import { useGetTelecallerOverdueRemindersQuery, useUpdateReminderMutation } from '../../store/api/leadapi';
+import { toast } from 'react-toastify';
 
 const ReminderContainer = () => {
   const navigate = useNavigate();
@@ -171,6 +172,7 @@ const ReminderContainer = () => {
 
       // Refetch reminders to ensure data is in sync
       await refetchReminders();
+      toast.success('Reminder updated successfully!');
     } catch (error) {
       console.error('Error updating reminder:', error);
       
@@ -190,7 +192,7 @@ const ReminderContainer = () => {
         error?.data?.error || 
         error?.message ||
         'Failed to update reminder. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -373,7 +375,7 @@ const ReminderContainer = () => {
             borderRadius: 2,
             border: '1px solid #D1FAE5',
             mb: 4,
-            backgroundColor: '#F0FDF4',
+            backgroundColor: '#FFFFFF',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -407,6 +409,12 @@ const ReminderContainer = () => {
                   onChange={() => handleToggleComplete(reminder.id)}
                   disabled={isUpdatingReminder}
                   sx={{
+                    '&.Mui-checked': {
+                      color: 'gray',
+                    },
+                    '&.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: '#10B981',
+                    },
                     mt: 0.5,
                     '& .MuiSvgIcon-root': {
                       fontSize: 20,

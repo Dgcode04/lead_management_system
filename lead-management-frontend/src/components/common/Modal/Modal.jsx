@@ -67,6 +67,30 @@ const Modal = ({
       </DialogContent>
       {(primaryButton || secondaryButton) && (
         <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          {primaryButton && (
+            <Button
+              onClick={primaryButton.onClick}
+              variant="contained"
+              disabled={primaryButton.disabled}
+              startIcon={primaryButton.startIcon}
+              sx={{
+                backgroundColor: primaryButton.danger ? '#DC2626' : '#000000',
+                color: '#FFFFFF',
+                textTransform: 'none',
+                borderRadius: '10px',
+                padding: '8px 16px',
+                '&:hover': {
+                  backgroundColor: primaryButton.danger ? '#B91C1C' : '#333333',
+                },
+                '&:disabled': {
+                  backgroundColor: primaryButton.danger ? '#FCA5A5' : '#9CA3AF',
+                  color: '#FFFFFF',
+                },
+              }}
+            >
+              {primaryButton.label}
+            </Button>
+          )}
           {secondaryButton && (
             <Button
               onClick={secondaryButton.onClick}
@@ -86,29 +110,7 @@ const Modal = ({
               {secondaryButton.label}
             </Button>
           )}
-          {primaryButton && (
-            <Button
-              onClick={primaryButton.onClick}
-              variant="contained"
-              disabled={primaryButton.disabled}
-              sx={{
-                backgroundColor: primaryButton.danger ? '#DC2626' : '#000000',
-                color: '#FFFFFF',
-                textTransform: 'none',
-                borderRadius: '10px',
-                padding: '8px 16px',
-                '&:hover': {
-                  backgroundColor: primaryButton.danger ? '#B91C1C' : '#333333',
-                },
-                '&:disabled': {
-                  backgroundColor: primaryButton.danger ? '#FCA5A5' : '#9CA3AF',
-                  color: '#FFFFFF',
-                },
-              }}
-            >
-              {primaryButton.label}
-            </Button>
-          )}
+          
         </DialogActions>
       )}
     </Dialog>

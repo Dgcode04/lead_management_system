@@ -5,6 +5,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useAppContext } from '../../../context/AppContext';
 import { useLogoutMutation } from '../../../store/api/authapi';
 import Modal from '../Modal/Modal';
+import { toast } from 'react-toastify';
 
 const UserProfile = () => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -40,9 +41,13 @@ const UserProfile = () => {
       console.error('Logout API error:', error);
       // Continue with logout even if API call fails
     } finally {
+      // Show success toast
+      toast.success('Logged out successfully!');
       // Always clear local state and navigate
       logout();
-      navigate('/login');
+      setTimeout(() => {
+        navigate('/login');
+      }, 500);
     }
   };
 

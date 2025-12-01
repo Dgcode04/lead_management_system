@@ -10,8 +10,10 @@ import {
   Typography,
   Divider,
   Link,
+  Badge,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PersonIcon from '@mui/icons-material/Person';
 import MarkChatUnreadOutlinedIcon from '@mui/icons-material/MarkChatUnreadOutlined';
@@ -19,6 +21,9 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { NAVIGATION_ITEMS } from '../../../utils/constants';
 import { useAppContext } from '../../../context/AppContext';
+import { useGetTelecallerOverdueRemindersQuery } from '../../../store/api/leadapi';
+import { useMemo, useState } from 'react';
+import Modal from '../Modal/Modal';
 
 const drawerWidth = 210;
 
@@ -34,6 +39,22 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAppContext();
+  const isTelecaller = user?.role === 'Telecaller';
+  const telecallerId = user?.id;
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  // Fetch reminders count for telecallers
+  const { data: overdueRemindersData } = useGetTelecallerOverdueRemindersQuery(telecallerId, {
+    skip: !telecallerId || !isTelecaller,
+  });
+
+  // Calculate pending reminders count
+  const pendingRemindersCount = useMemo(() => {
+    if (!overdueRemindersData?.pending || !Array.isArray(overdueRemindersData.pending)) {
+      return 0;
+    }
+    return overdueRemindersData.pending.length;
+  }, [overdueRemindersData]);
 
   // Filter navigation items based on user role
   const getNavigationItems = () => {
@@ -61,8 +82,17 @@ const Sidebar = () => {
   const navigationItems = getNavigationItems();
 
   const handleLogout = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
     logout();
+    setIsLogoutModalOpen(false);
     navigate('/login');
+  };
+
+  const handleCloseLogoutModal = () => {
+    setIsLogoutModalOpen(false);
   };
 
   return (
@@ -131,13 +161,41 @@ const Sidebar = () => {
                     <IconComponent />
                   </ListItemIcon>
                   <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                    }}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 1 }}>
+                        <Typography
+                          sx={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {item.label}
+                        </Typography>
+                        {item.id === 'reminder' && pendingRemindersCount > 0 && (
+                          <Box
+                            sx={{
+                              backgroundColor: '#EF4444',
+                              color: '#FFFFFF',
+                              borderRadius: '10px',
+                              minWidth: '20px',
+                              height: '20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {pendingRemindersCount}
+                          </Box>
+                        )}
+                      </Box>
+                    }
                   />
+                  
                 </ListItemButton>
+
               </ListItem>
             );
           })}
@@ -159,7 +217,7 @@ const Sidebar = () => {
         >
           Logged in as
         </Typography>
-        <Typography sx={{ fontWeight: 400, fontSize: '12px' }}>
+        <Typography sx={{ fontWeight: 400, fontSize: '14px' }}>
           {user?.name || 'User'}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '11px', display: 'block', mb: 1.5 }}>
@@ -174,16 +232,40 @@ const Sidebar = () => {
             color: '#EF4444',
             fontSize: '13px',
             textDecoration: 'none',
+            fontWeight: 600,
+            gap: 2,
             cursor: 'pointer',
             '&:hover': {
               textDecoration: 'underline',
             },
           }}
         >
+          <LogoutOutlinedIcon sx={{ fontSize: '16px', fontWeight:600, ml: 0.5 }} />
           Log out
-          <ArrowForwardIcon sx={{ fontSize: '14px', ml: 0.5 }} />
         </Link>
       </Box>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        open={isLogoutModalOpen}
+        onClose={handleCloseLogoutModal}
+        // title="Confirm Logout"
+        title="Are you sure you want to log out?"
+        maxWidth="md"
+        primaryButton={{
+          label: 'Logout',
+          onClick: handleConfirmLogout,
+          danger: true,
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onClick: handleCloseLogoutModal,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+        You will be returned to the login screen. Any unsaved changes will be lost.
+        </Typography>
+      </Modal>
     </Drawer>
   );
 };

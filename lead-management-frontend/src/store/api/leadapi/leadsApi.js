@@ -156,6 +156,24 @@ export const leadsApi = createApi({
       },
       providesTags: ['Leads'],
     }),
+
+    // Import leads
+    importLeadsCsv: builder.mutation({
+      queryFn: async (formData, api, extraOptions, baseQuery) => {
+        const result = await baseQuery({
+          url: 'leads/import',
+          method: 'POST',
+          body: formData,
+        });
+    
+        if (result.error) {
+          return { error: result.error };
+        }
+    
+        return { data: result.data };
+      },
+    }),
+    
     // Export reports CSV
     exportReportsCsv: builder.mutation({
       queryFn: async (day, api, extraOptions, baseQuery) => {
@@ -213,6 +231,7 @@ export const {
   useGetActiveTelecallersQuery,
   useGetLeadStatusDistributionQuery,
   useGetReportsDataQuery,
+  useImportLeadsCsvMutation,
   useExportReportsCsvMutation,
   useExportLeadsMutation,
 } = leadsApi;

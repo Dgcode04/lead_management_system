@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Box, Chip, Button } from '@mui/material';
+import { Box, Chip, Button, Typography } from '@mui/material';
 import { DataGrid as MuiDataGrid } from '@mui/x-data-grid';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
@@ -11,24 +11,24 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
   // Debug: Log leads data to check structure
   const getStatusColor = (status) => {
     const colors = {
-      New: '#3B82F6',
-      Contacted: '#9333EA',
-      Interested: '#10B981',
+      new: '#3B82F6',
+      contacted: '#9333EA',
+      interested: '#10B981',
       'Follow-up': '#F59E0B',
-      Converted: '#059669',
-      'Not Interested': '#EF4444',
+      converted: '#059669',
+      not_interested: '#EF4444',
     };
     return colors[status] || '#6B7280';
   };
 
   const getStatusBgColor = (status) => {
     const colors = {
-      New: '#DBEAFE',
-      Contacted: '#F3E8FF',
-      Interested: '#D1FAE5',
-      'Follow-up': '#FEF3C7',
-      Converted: '#D1FAE5',
-      'Not Interested': '#FEE2E2',
+      new: '#DBEAFE',
+      contacted: '#F3E8FF',
+      interested: '#D1FAE5',
+      'follow_up': '#FEF3C7',
+      converted: '#D1FAE5',
+      not_interested: '#FEE2E2',
     };
     return colors[status] || '#F3F4F6';
   };
@@ -45,10 +45,14 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
           renderCell: (params) => {
             const leadId = params.row?.id || params.id || '-';
             const leadName = params.row?.name || '-';
+            // Format lead ID with leading zeros (L001, L010, L011, etc.)
+            const formattedId = leadId !== '-' 
+              ? `L${String(leadId).padStart(3, '0')}` 
+              : '-';
             return (
               <Box>
-                <Box sx={{ fontWeight: 500, fontSize: '14px' }}>{leadName}</Box>
-                <Box sx={{ fontSize: '11px', color: '#6B7280', mt: 0.5 }}>{leadId}</Box>
+                <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>{leadName}</Typography>
+                <Typography sx={{ fontSize: '11px', color: '#6B7280', mt: 0.5 }}>{formattedId}</Typography>
               </Box>
             );
           },
@@ -56,25 +60,25 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
         {
           field: 'contact',
           headerName: 'Contact',
-          flex: 1,
-          minWidth: 100,
+          flex: 1.2,
+          minWidth: 150,
           sortable: false,
-          renderCell: (params) => {
-            const phone = params.row?.phone || '-';
-            const emailData = params.row?.email || '-';
-            return (
-              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <PhoneIcon sx={{ fontSize: 14, color: '#6B7280' }} />
-                  <Box sx={{ fontSize: '13px' }}>{phone}</Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'top', gap: 0.5 }}>
-                  <EmailIcon sx={{ fontSize: 14, color: '#6B7280' }} />
-                  <Box sx={{ fontSize: '13px' }}>{emailData}</Box>
-                </Box>
+          renderCell: (params) => (
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <EmailIcon sx={{ fontSize: 14, color: '#6B7280' }} />
+                <Typography sx={{ fontSize: '13px', color: '#111827' }}>
+                  {params.row.email}
+                </Typography>
               </Box>
-            );
-          },
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <PhoneIcon sx={{ fontSize: 14, color: '#6B7280' }} />
+                <Typography sx={{ fontSize: '13px', color: '#111827' }}>
+                  {params.row.phone}
+                </Typography>
+              </Box>
+            </Box>
+          ),
         },
         {
           field: 'company',
@@ -162,7 +166,10 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
             <Button
               size="small"
               startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
-              onClick={() => onViewClick && onViewClick(params.row)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewClick && onViewClick(params.row);
+              }}
               sx={{
                 color: 'primary.main',
                 textTransform: 'none',
@@ -229,6 +236,7 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
           display: 'none',
         },
         '& .MuiDataGrid-row': {
+          cursor: 'pointer',
           '&:hover': {
             backgroundColor: '#F9FAFB',
           },
@@ -252,6 +260,9 @@ const LeadsTable = ({ leads, onViewClick, loading = false, showAssignedTo = true
           },
         }}
         getRowId={(row) => row.id || row.name || Math.random()}
+        onRowClick={(params) => {
+          onViewClick && onViewClick(params.row);
+        }}
       />
     </Box>
   );

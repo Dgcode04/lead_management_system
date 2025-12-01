@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid } from '@mui/material';
+import { Box, Grid, Button, Typography } from '@mui/material';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AddIcon from '@mui/icons-material/Add';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import WarningIcon from '@mui/icons-material/Warning';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PageHeader from '../../components/common/PageHeader/PageHeader';
 import FilterSection from '../../components/common/FilterSection/FilterSection';
 import LeadsTable from '../../components/common/LeadsTable/LeadsTable';
@@ -12,8 +15,9 @@ import Input from '../../components/common/Input/Input';
 import Label from '../../components/common/Label/Label';
 import Selector from '../../components/common/Selector/Selector';
 import { useAppContext } from '../../context/AppContext';
-import { useGetLeadSourcesQuery, useGetLeadStatusQuery, useGetAllLeadsQuery, useCreateLeadMutation, useExportLeadsMutation } from '../../store/api/leadapi';
+import { useGetLeadSourcesQuery, useGetLeadStatusQuery, useGetAllLeadsQuery, useCreateLeadMutation, useExportLeadsMutation, useImportLeadsCsvMutation } from '../../store/api/leadapi';
 import { useGetAllTelecallersQuery } from '../../store/api/telecallersapi';
+import { toast } from 'react-toastify';
 
 const AllLeadsContainer = () => {
   const navigate = useNavigate();
@@ -38,9 +42,10 @@ const AllLeadsContainer = () => {
   
   // Export leads mutation
   const [exportLeads, { isLoading: isExporting }] = useExportLeadsMutation();
-  
-  console.log(leadsData,'leadsData');
 
+  // Import leads mutation
+  const [importLeadsCsv, { isLoading: isImporting }] = useImportLeadsCsvMutation();
+  
   // Transform API response to match component format
   const leads = useMemo(() => {
     if (!leadsData) return [];
@@ -62,39 +67,22 @@ const AllLeadsContainer = () => {
       }));
     }
     
-    // Handle object with array property
-    if (leadsData?.leads && Array.isArray(leadsData.leads)) {
-      return leadsData.leads.map((lead) => ({
-        id: lead.id?.toString() || lead._id?.toString() || '',
-        name: lead.name || '',
-        phone: lead.phone || '',
-        email: lead.email || '',
-        company: lead.company || '',
-        status: lead.initial_status || lead.status || 'New',
-        assignedTo: lead.assigneto || lead.assignedTo || 'Unassigned',
-        source: lead.source || lead.lead_source || '',
-        created: lead.created_at 
-          ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : lead.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      }));
-    }
-    
-    // Handle object with data property
-    if (leadsData?.data && Array.isArray(leadsData.data)) {
-      return leadsData.data.map((lead) => ({
-        id: lead.id?.toString() || lead._id?.toString() || '',
-        name: lead.name || '',
-        phone: lead.phone || '',
-        email: lead.email || '',
-        company: lead.company || '',
-        status: lead.initial_status || lead.status || 'New',
-        assignedTo: lead.created_by_user?.name || lead.assignedTo || 'Unassigned',
-        source: lead.source || lead.lead_source || '',
-        created: lead.created_at 
-          ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : lead.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      }));
-    }
+    // // Handle object with array property
+    // if (leadsData?.leads && Array.isArray(leadsData.leads)) {
+    //   return leadsData.leads.map((lead) => ({
+    //     id: lead.id?.toString() || lead._id?.toString() || '',
+    //     name: lead.name || '',
+    //     phone: lead.phone || '',
+    //     email: lead.email || '',
+    //     company: lead.company || '',
+    //     status: lead.initial_status || lead.status || 'New',
+    //     assignedTo: lead.assigneto || lead.assignedTo || 'Unassigned',
+    //     source: lead.source || lead.lead_source || '',
+    //     created: lead.created_at 
+    //       ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    //       : lead.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    //   }));
+    // }
     
     return [];
   }, [leadsData]);
@@ -104,6 +92,10 @@ const AllLeadsContainer = () => {
   const [assigneeFilter, setAssigneeFilter] = useState('All Assignees');
   const [filteredLeads, setFilteredLeads] = useState(leads);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [defaultStatus, setDefaultStatus] = useState('New');
+  const [defaultAssignee, setDefaultAssignee] = useState('Unassigned');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -117,7 +109,6 @@ const AllLeadsContainer = () => {
 
     // Transform API response to options format for Selector component
     const leadSourceOptions = useMemo(() => {
-      console.log(leadSourcesData,'leadSourcesData');
       if (!leadSourcesData) return [];
       
       // Handle different API response formats
@@ -171,28 +162,6 @@ const AllLeadsContainer = () => {
           label: status.name || status.label || status.value,
         }));
       }
-    }
-    // If API returns array directly
-    else if (Array.isArray(leadStatusData) && leadStatusData.length > 0) {
-      if (typeof leadStatusData[0] === 'string') {
-        options = leadStatusData.map((status) => ({
-          value: status,
-          label: status,
-        }));
-      }
-      else if (typeof leadStatusData[0] === 'object') {
-        options = leadStatusData.map((status) => ({
-          value: status.name || status.id || status.value,
-          label: status.name || status.label || status.value,
-        }));
-      }
-    }
-    // If API returns object with data property: {data: [...]}
-    else if (leadStatusData?.data && Array.isArray(leadStatusData.data)) {
-      options = leadStatusData.data.map((status) => ({
-        value: typeof status === 'string' ? status : (status.name || status.id || status.value),
-        label: typeof status === 'string' ? status : (status.name || status.label || status.value),
-      }));
     }
     
     return options;
@@ -291,6 +260,32 @@ const AllLeadsContainer = () => {
     setFilteredLeads(filtered);
   }, [searchQuery, statusFilter, assigneeFilter, roleFilteredLeads, isTelecaller]);
 
+  // Set default status to 'New' when options are loaded
+  useEffect(() => {
+    if (leadStatusOptions.length > 0) {
+      setDefaultStatus((currentValue) => {
+        // Check if current value exists in options
+        const currentOption = leadStatusOptions.find(option => 
+          option.value === currentValue || option.label === currentValue
+        );
+        
+        // If current value doesn't match any option, try to find 'New'
+        if (!currentOption) {
+          const newOption = leadStatusOptions.find(option => 
+            option.value === 'New' || option.label === 'New'
+          );
+          if (newOption) {
+            return newOption.value;
+          } else if (leadStatusOptions[0]) {
+            // If 'New' doesn't exist, use the first option
+            return leadStatusOptions[0].value;
+          }
+        }
+        return currentValue;
+      });
+    }
+  }, [leadStatusOptions]);
+
   const handleClearFilters = () => {
     setSearchQuery('');
     setStatusFilter('All Statuses');
@@ -306,9 +301,96 @@ const AllLeadsContainer = () => {
   };
 
   const handleImport = () => {
-    console.log('Import leads');
-    // Handle import action
+    setIsImportModalOpen(true);
   };
+
+  const handleImportLeads = async () => {
+    if (!selectedFile) {
+      toast.error("Please select a CSV file");
+      return;
+    }
+  
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("default_status", defaultStatus);
+    formData.append("default_assigned_to", defaultAssignee);
+    formData.append("override_status", true);      // or state
+    formData.append("override_assigned_to", false); // or state
+  
+    try {
+      const response = await importLeadsCsv(formData).unwrap();
+      toast.success(`Imported leads`);
+  
+      handleCloseImportModal();
+    } catch (error) {
+      toast.error("Error importing leads");
+      console.log(error);
+    }
+  };
+
+  const handleCloseImportModal = () => {
+    setIsImportModalOpen(false);
+    setSelectedFile(null);
+    setDefaultStatus('New');
+    setDefaultAssignee('Unassigned');
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    // Create CSV template content
+    const csvContent = 'name,email,phone,company,source,campaign,status,assignedto\nJohn Doe,john@example.com,1234567890,Company Inc,Website,Summer Campaign,New,Unassigned';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'leads_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    toast.success('Template downloaded successfully!');
+  };
+
+  // const handleImportLeads = async () => {
+  //   if (!selectedFile) {
+  //     toast.error('Please select a CSV file');
+  //     return;
+  //   }
+
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append('file', selectedFile);
+  //     formData.append('default_status', defaultStatus);
+  //     formData.append('default_assignee', defaultAssignee === 'Unassigned' ? '' : defaultAssignee);
+
+  //     const response = await fetch('http://localhost:8000/leads/import', {
+  //       method: 'POST',
+  //       credentials: 'include',
+  //       body: formData,
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.message || 'Import failed');
+  //     }
+
+  //     const result = await response.json();
+  //     toast.success(`Successfully imported ${result.imported || 0} leads!`);
+  //     handleCloseImportModal();
+      
+  //     // Refetch leads data
+  //     // The cache will be invalidated automatically if the API supports it
+  //   } catch (error) {
+  //     console.error('Error importing leads:', error);
+  //     toast.error(error.message || 'Failed to import leads. Please try again.');
+  //   }
+  // };
 
   const handleExport = async () => {
     try {
@@ -344,9 +426,10 @@ const AllLeadsContainer = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('Leads exported successfully!');
     } catch (error) {
       console.error('Error exporting leads:', error);
-      alert('Failed to export leads. Please try again.');
+      toast.error('Failed to export leads. Please try again.');
     }
   };
 
@@ -385,7 +468,7 @@ const AllLeadsContainer = () => {
   const handleCreateLead = async () => {
     // Validate required fields
     if (!formData.name || !formData.email || !formData.phone) {
-      alert('Please fill in all required fields (Name, Email, Phone)');
+      toast.error('Please fill in all required fields (Name, Email, Phone)');
       return;
     }
 
@@ -430,6 +513,7 @@ const AllLeadsContainer = () => {
 
       // Close modal and reset form on success
       handleCloseModal();
+      toast.success('Lead created successfully!');
     } catch (error) {
       console.error('Error creating lead:', error);
       // Handle different error formats
@@ -439,7 +523,7 @@ const AllLeadsContainer = () => {
         error?.data?.detail ||
         error?.message ||
         'Failed to create lead. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -641,6 +725,142 @@ const AllLeadsContainer = () => {
             )}
           </Grid>
         </Grid>
+      </Modal>
+
+      {/* Import Leads Modal */}
+      <Modal
+        open={isImportModalOpen}
+        onClose={handleCloseImportModal}
+        title="Import Leads from CSV"
+        subtitle="Upload a CSV file to bulk import leads"
+        maxWidth="md"
+        primaryButton={{
+          label: 'Import Leads',
+          onClick: handleImportLeads,
+          startIcon: <UploadFileIcon />,
+          disabled: !selectedFile || isImporting,
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onClick: handleCloseImportModal,
+        }}
+      >
+        <Box>
+          {/* CSV Format Instructions */}
+          <Box
+            sx={{
+              backgroundColor: '#F3F3F5',
+              borderRadius: '10px',
+              p: 2,
+              mb: 3,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+            }}
+          >
+            <DescriptionOutlinedIcon sx={{ color: 'text.secondary', mt: 0.5 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                CSV should have columns: name, email, phone, company, source, campaign, status, assignedto
+              </Typography>
+              <Typography
+                variant="body2"
+                onClick={handleDownloadTemplate}
+                sx={{
+                  fontWeight: 600,
+                  color: '#000000',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                Download template CSV
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Select CSV File */}
+          <Box sx={{ mb: 3 }}>
+            <Label required>Select CSV File</Label>
+            <Box
+              sx={{
+                width: '100%',
+                gap: 2,
+                mt: 1,
+              }}
+            >
+              <Button
+                variant="outlined"
+                component="label"
+                sx={{
+                  width: '100%',
+                  backgroundColor: 'lightgray',
+                  borderColor: '#E5E7EB',
+                  color: 'text.primary',
+                  textTransform: 'none',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  gap: 1,
+                justifyContent: 'flex-start',
+                  // '&:hover': {
+                  //   borderColor: '#D1D5DB',
+                  //   backgroundColor: '#F9FAFB',
+                  // },
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>Choose File</span>
+                <input
+                  type="file"
+                  accept=".csv"
+                  hidden
+                  onChange={handleFileChange}
+                />
+                {selectedFile ? selectedFile.name : 'No file chosen'}
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Default Settings */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} sx={{ width: '47%' }}>
+              <Label>Default Status</Label>
+              <Selector
+                value={defaultStatus}
+                onChange={(e) => setDefaultStatus(e.target.value)}
+                options={leadStatusOptions}
+                placeholder="Select status"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} sx={{ width: '47%' }}>
+              <Label>Default Assignee</Label>
+              <Selector
+                value={defaultAssignee}
+                onChange={(e) => setDefaultAssignee(e.target.value)}
+                options={telecallerOptions}
+                placeholder="Select assignee"
+              />
+            </Grid>
+          </Grid>
+
+          {/* Warning Message */}
+          <Box
+            sx={{
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FEE2E2',
+              borderRadius: '10px',
+              p: 2,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 1.5,
+            }}
+          >
+            <WarningIcon sx={{ color: '#EF4444', fontSize: 20, mt: 0.25 }} />
+            <Typography variant="body2" sx={{ color: '#991B1B' }}>
+              Leads without name, email, or phone will be skipped during import.
+            </Typography>
+          </Box>
+        </Box>
       </Modal>
     </Box>
   );

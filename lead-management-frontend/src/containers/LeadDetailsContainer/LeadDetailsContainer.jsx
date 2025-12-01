@@ -33,6 +33,7 @@ import Selector from '../../components/common/Selector/Selector';
 import { useGetLeadByIdQuery, useGetLeadStatusQuery, useUpdateLeadMutation, useGetLeadCallsQuery, useCreateLeadCallMutation, useGetRemindersQuery, useCreateReminderMutation, useGetLeadSourcesQuery } from '../../store/api/leadapi';
 // import { useGetAllTelecallersQuery } from '../../store/api/telecallersapi';
 import { useAppContext } from '../../context/AppContext';
+import { toast } from 'react-toastify';
 
 const LeadDetailsContainer = () => {
     const { id } = useParams();
@@ -194,7 +195,7 @@ const LeadDetailsContainer = () => {
     const handleSaveEdit = async () => {
         // Validate required fields
         if (!editFormData.name || !editFormData.email || !editFormData.phone) {
-            alert('Please fill in all required fields (Name, Email, Phone)');
+            toast.error('Please fill in all required fields (Name, Email, Phone)');
             return;
         }
 
@@ -213,8 +214,13 @@ const LeadDetailsContainer = () => {
             // Update lead via API
             await updateLead(leadUpdateData).unwrap();
 
-            // Exit edit mode on success
+            // Exit edit mode on success (this may trigger refetch due to cache invalidation)
             setIsEditMode(false);
+            
+            // Use requestAnimationFrame to ensure toast displays after any re-renders
+            requestAnimationFrame(() => {
+                toast.success('Lead updated successfully!');
+            });
         } catch (error) {
             console.error('Error updating lead:', error);
             const errorMessage = 
@@ -223,7 +229,7 @@ const LeadDetailsContainer = () => {
                 error?.data?.detail ||
                 error?.message ||
                 'Failed to update lead. Please try again.';
-            alert(errorMessage);
+            toast.error(errorMessage);
         }
     };
 
@@ -401,6 +407,7 @@ const LeadDetailsContainer = () => {
             
             // Refetch lead data to ensure UI is in sync
             await refetchLead();
+            toast.success('Status updated successfully!');
         } catch (error) {
             console.error('Error updating lead status:', error);
             // Revert status on error
@@ -411,7 +418,7 @@ const LeadDetailsContainer = () => {
                 error?.data?.detail ||
                 error?.message ||
                 'Failed to update status. Please try again.';
-            alert(errorMessage);
+            toast.error(errorMessage);
         }
     };
 
@@ -484,7 +491,7 @@ const LeadDetailsContainer = () => {
     const handleCreateReminder = async () => {
         // Validate required fields
         if (!reminderFormData.title || !reminderFormData.dueDate || !reminderFormData.dueTime) {
-            alert('Please fill in all required fields (Title, Due Date, and Time)');
+            toast.error('Please fill in all required fields (Title, Due Date, and Time)');
             return;
         }
 
@@ -510,6 +517,7 @@ const LeadDetailsContainer = () => {
             
             // Close modal and reset form on success
             handleCloseReminderModal();
+            toast.success('Reminder created successfully!');
             
             // Note: The mutation will automatically invalidate the cache and refetch
             // due to invalidatesTags in the API definition
@@ -520,14 +528,14 @@ const LeadDetailsContainer = () => {
                 error?.data?.error || 
                 error?.message ||
                 'Failed to create reminder. Please try again.';
-            alert(errorMessage);
+            toast.error(errorMessage);
         }
     };
 
     const handleLogCall = async () => {
         // Validate required fields
         if (!callFormData.callType || !callFormData.duration) {
-            alert('Please fill in all required fields (Call Type and Duration)');
+            toast.error('Please fill in all required fields (Call Type and Duration)');
             return;
         }
 
@@ -545,6 +553,7 @@ const LeadDetailsContainer = () => {
             
             // Close modal and reset form on success
             handleCloseLogCallModal();
+            toast.success('Call logged successfully!');
             
             // Note: The mutation will automatically invalidate the cache and refetch
             // due to invalidatesTags in the API definition
@@ -556,7 +565,7 @@ const LeadDetailsContainer = () => {
                 error?.data?.detail ||
                 error?.message ||
                 'Failed to log call. Please try again.';
-            alert(errorMessage);
+            toast.error(errorMessage);
         }
     };
 
@@ -1074,7 +1083,7 @@ const LeadDetailsContainer = () => {
                     <Grid item xs={12} md={4} sx={{ width:"35%" }}>
                         <Box
                             sx={{
-                                p: 3,
+                                p: 2,
                                 borderRadius: 1,
                                 width: '100%',
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
@@ -1145,7 +1154,7 @@ const LeadDetailsContainer = () => {
                  </Grid>
                 <Grid container spacing={3}>
                     {/* Activity Tabs */}
-                    <Grid item xs={12} sm={8} sx={{  }}>
+                    <Grid item xs={12} md={8} sx={{  }}>
                         <Box
                             sx={{
                                 width: '100%',
@@ -1161,7 +1170,7 @@ const LeadDetailsContainer = () => {
                             sx={{
                                 p: 3,
                                 borderRadius: 1,
-                                width: '100%',
+                                width: '350px',
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
                             }}
                         >

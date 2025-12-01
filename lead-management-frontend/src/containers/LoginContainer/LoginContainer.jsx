@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import LoginForm from '../../components/common/LoginForm/LoginForm';
 import { useAppContext } from '../../context/AppContext';
 import { useSigninMutation } from '../../store/api/authapi';
+import { toast } from 'react-toastify';
 
 // Normalize role to match expected format (Admin or Telecaller)
 const normalizeRole = (role) => {
@@ -73,6 +74,9 @@ const LoginContainer = () => {
       localStorage.setItem('user', JSON.stringify(userInfo));
       localStorage.setItem('isAuthenticated', 'true');
 
+      // Show success toast
+      toast.success('Login successful!');
+      
       // Redirect based on normalized role
       if (normalizedRole === 'Admin') {
         navigate('/', { replace: true });
@@ -90,7 +94,7 @@ const LoginContainer = () => {
         error?.data?.error || 
         error?.message ||
         'Invalid email or password. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 

@@ -10,6 +10,7 @@ import TelecallerPerformanceChart from '../../components/common/TelecallerPerfor
 import LeadSourcesChart from '../../components/common/LeadSourcesChart/LeadSourcesChart';
 import { useGetReportsDataQuery, useExportReportsCsvMutation } from '../../store/api/leadapi';
 import { useGetAllTelecallersQuery } from '../../store/api/telecallersapi';
+import { toast } from 'react-toastify';
 
 const ReportsContainer = () => {
   const [dateFilter, setDateFilter] = useState('Last 7 days');
@@ -108,8 +109,10 @@ const ReportsContainer = () => {
       // Cleanup
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('Report exported successfully!');
     } catch (error) {
       console.error("CSV export failed:", error);
+      toast.error('Failed to export report. Please try again.');
     }
   };
   

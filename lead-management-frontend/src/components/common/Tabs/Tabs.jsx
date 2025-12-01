@@ -31,7 +31,7 @@ const Tabs = ({ tabs = [], defaultTab = 0, onChange }) => {
               color: 'text.primary',
               fontWeight: 600,
               fontSize: '14px',
-              padding: '6px 60px',
+              padding: '6px 67px',
               minWidth: 'auto',
               borderRadius: 10,
               

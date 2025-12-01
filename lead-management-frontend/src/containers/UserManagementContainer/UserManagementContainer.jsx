@@ -8,6 +8,7 @@ import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
 import Label from '../../components/common/Label/Label';
 import { useGetAdminTelecallersQuery, useCreateTelecallerMutation, useToggleTelecallerStatusMutation } from '../../store/api/telecallersapi';
+import { toast } from 'react-toastify';
 
 const UserManagementContainer = () => {
   // Fetch admin telecallers from API (paginated)
@@ -78,6 +79,7 @@ const UserManagementContainer = () => {
       // Call the toggle API endpoint
       await toggleTelecallerStatus(id).unwrap();
       // The cache will be invalidated automatically, so the data will refresh
+      toast.success('Telecaller status updated successfully!');
     } catch (error) {
       console.error('Error toggling telecaller status:', error);
       const errorMessage = 
@@ -86,7 +88,7 @@ const UserManagementContainer = () => {
         error?.data?.detail ||
         error?.message ||
         'Failed to update telecaller status. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -113,7 +115,7 @@ const UserManagementContainer = () => {
   const handleCreateTelecaller = async () => {
     // Validate required fields
     if (!formData.name || !formData.email) {
-      alert('Please fill in all required fields (Name, Email)');
+      toast.error('Please fill in all required fields (Name, Email)');
       return;
     }
 
@@ -130,9 +132,10 @@ const UserManagementContainer = () => {
 
       // Close modal and reset form
       handleCloseModal();
+      toast.success('Telecaller created successfully!');
     } catch (error) {
       console.error('Error creating telecaller:', error);
-      alert(error?.data?.message || error?.data?.error || 'Failed to create telecaller. Please try again.');
+      toast.error(error?.data?.message || error?.data?.error || 'Failed to create telecaller. Please try again.');
     }
   };
 
